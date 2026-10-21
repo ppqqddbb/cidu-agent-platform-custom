@@ -1,0 +1,33 @@
+FROM node:22.22.1-alpine
+
+ENV NODE_ENV=production
+ENV EDITION=SELF_HOSTED
+ENV DEPLOY_ENV=PRODUCTION
+ENV CONSOLE_API_URL=http://127.0.0.1:5001
+ENV APP_API_URL=http://127.0.0.1:5001
+ENV MARKETPLACE_API_URL=https://marketplace.dify.ai
+ENV MARKETPLACE_URL=https://marketplace.dify.ai
+ENV PORT=3000
+ENV EXPERIMENTAL_ENABLE_VINEXT=false
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV TZ=UTC
+ENV COMMIT_SHA=local-host-build
+
+RUN addgroup -S -g 1001 dify \
+  && adduser -S -u 1001 -G dify -s /bin/ash -h /home/dify dify \
+  && mkdir -p /app/targets/next /app/web \
+  && chown -R dify:dify /app
+
+WORKDIR /app
+
+COPY --chown=dify:dify .next/standalone/ /app/targets/next/
+COPY --chown=dify:dify public /app/targets/next/web/public
+COPY --chown=dify:dify .next/static /app/targets/next/web/.next/static
+COPY --chown=dify:dify --chmod=755 docker/entrypoint.sh /app/web/entrypoint.sh
+
+RUN node -e "const fs=require('fs'); const path=require('path'); const roots=['/app/targets/next/node_modules','/app/targets/next/web/node_modules','/app/targets/next/web/.next/node_modules']; const mappings=[['D:/workspace/code/dify/node_modules/','/app/targets/next/node_modules/'],['D:/workspace/code/dify/web/node_modules/','/app/targets/next/web/node_modules/']]; const pnpmRoots=['/app/targets/next/node_modules/.pnpm','/app/targets/next/web/node_modules/.pnpm']; const normalize=(p)=>p.replace(/\\\\/g,'/'); const toNative=(p)=>p.replaceAll('/', path.sep); const findPnpmTarget=(moduleName)=>{ for (const pnpmRoot of pnpmRoots) { if(!fs.existsSync(pnpmRoot)) continue; const prefix = moduleName.startsWith('@') ? moduleName.replace('/', '+') + '@' : moduleName + '@'; for (const dir of fs.readdirSync(pnpmRoot)) { if (!dir.startsWith(prefix)) continue; const candidate = path.join(pnpmRoot, dir, 'node_modules', moduleName); if (fs.existsSync(candidate)) return candidate; } } return null; }; const rewriteLink=(full)=>{ let target=fs.readlinkSync(full); let normalizedTarget=normalize(target); for (const [winPrefix, localPrefix] of mappings){ if (normalizedTarget.startsWith(winPrefix)){ const suffix = normalizedTarget.slice(winPrefix.length); normalizedTarget = normalize(path.join(localPrefix, toNative(suffix))); break; } } let absTarget = path.resolve(path.dirname(full), toNative(normalizedTarget)); if (!fs.existsSync(absTarget)) { const marker='/node_modules/'; const idx = normalizedTarget.lastIndexOf(marker); if (idx !== -1) { const moduleName = normalizedTarget.slice(idx + marker.length); const remapped = findPnpmTarget(moduleName); if (remapped) absTarget = remapped; } } if (!fs.existsSync(absTarget)) return; const relTarget = path.relative(path.dirname(full), absTarget); if (target === relTarget) return; fs.rmSync(full, { force: true }); fs.symlinkSync(relTarget, full); }; const walk=(dir)=>{ if (!fs.existsSync(dir)) return; for (const entry of fs.readdirSync(dir,{withFileTypes:true})) { const full=path.join(dir, entry.name); if (entry.isSymbolicLink()) rewriteLink(full); else if (entry.isDirectory()) walk(full); } }; for (const root of roots) walk(root);"
+
+USER dify
+WORKDIR /app/web
+EXPOSE 3000
+ENTRYPOINT ["/bin/sh", "./entrypoint.sh"]

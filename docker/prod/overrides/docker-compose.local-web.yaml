@@ -1,0 +1,7 @@
+services:
+  web:
+    image: ${LOCAL_DIFY_WEB_IMAGE:-dify-web:local}
+    pull_policy: never
+    environment:
+      NEXT_PUBLIC_API_PREFIX: /console/api
+      NEXT_PUBLIC_PUBLIC_API_PREFIX: /api

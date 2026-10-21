@@ -1,0 +1,80 @@
+identity:
+  name: invoke_api
+  author: Dify
+  label:
+    en_US: Invoke API
+    zh_Hans: 执行接口调用
+description:
+  human:
+    en_US: Invoke a selected external app API with permission checks and audit logging.
+    zh_Hans: 对指定第三方应用接口执行调用，并附带权限校验与审计日志。
+  llm: Use app_id/api_id from list_available_apis, then invoke with params. If required parameters, auth fields, or permission conditions are missing, explicitly tell the user what is missing before retrying.
+parameters:
+  - name: app_id
+    type: string
+    required: true
+    label:
+      en_US: App ID
+      zh_Hans: 应用ID
+    human_description:
+      en_US: Target app id from list_available_apis.
+      zh_Hans: 来自 list_available_apis 的目标应用ID。
+    llm_description: required app_id returned by list_available_apis.
+    form: llm
+  - name: api_id
+    type: string
+    required: true
+    label:
+      en_US: API ID
+      zh_Hans: 接口ID
+    human_description:
+      en_US: Target api id from list_available_apis.
+      zh_Hans: 来自 list_available_apis 的目标接口ID。
+    llm_description: required api_id returned by list_available_apis.
+    form: llm
+  - name: context_token
+    type: string
+    required: false
+    label:
+      en_US: Context Token
+      zh_Hans: 上下文令牌
+    human_description:
+      en_US: Optional auth context token from upstream system.
+      zh_Hans: 来自上游业务系统的可选鉴权上下文令牌。
+    llm_description: auth context token with capabilities and tenant binding; prefer reusing the context_token provided in app inputs.
+    form: llm
+  - name: params
+    type: object
+    required: false
+    default: {}
+    label:
+      en_US: Params
+      zh_Hans: 请求参数
+    human_description:
+      en_US: API params object, supports path/query/body/headers.
+      zh_Hans: 请求参数对象，支持 path/query/body/headers 四段。
+    llm_description: object like {"path":{},"query":{},"body":{},"headers":{}}.
+    form: llm
+  - name: dry_run
+    type: boolean
+    required: false
+    default: false
+    label:
+      en_US: Dry Run
+      zh_Hans: 仅预演
+    human_description:
+      en_US: Validate route/permission without outbound request.
+      zh_Hans: 仅校验路由与权限，不实际出网调用。
+    llm_description: true to preview target and permission, false to really invoke.
+    form: llm
+  - name: timeout_seconds
+    type: number
+    required: false
+    label:
+      en_US: Timeout Seconds
+      zh_Hans: 超时秒数
+    human_description:
+      en_US: Optional per-request timeout.
+      zh_Hans: 可选的单次请求超时时间。
+    llm_description: optional timeout > 0 and <= 120.
+    form: llm

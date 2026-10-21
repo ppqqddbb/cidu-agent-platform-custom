@@ -1,0 +1,122 @@
+openapi: 3.0.3
+info:
+  title: 第三方应用接口导入模板
+  version: 1.0.0
+  description: |
+    用于导入到 Dify「接口管理」的 OpenAPI 模板。
+    重点字段：
+    - operationId / summary / description
+    - x-api-purpose
+    - x-required-permissions
+    - requestBody（按当前系统运行时需要，使用 path/query/body/headers 四段参数结构）
+    - responses
+
+servers:
+  - url: https://api.example.com
+    description: 生产环境
+
+paths:
+  /v1/users/{userId}:
+    get:
+      operationId: getUserProfile
+      summary: 查询用户信息
+      description: 按 userId 查询单个用户详情。
+      x-api-purpose: 用户信息查询
+      x-required-permissions:
+        - user.read
+      requestBody:
+        # 以下结构会被导入为 request_schema，供运行时参数校验使用
+        base_url_override: https://api.example.com
+        path:
+          - name: userId
+            type: string
+            required: true
+            description: 用户ID
+        query:
+          - name: includeRoles
+            type: boolean
+            required: false
+            description: 是否附带角色列表
+        body: []
+        headers:
+          - name: X-Biz-Trace
+            type: string
+            required: false
+            description: 业务追踪ID
+      responses:
+        "200":
+          description: 查询成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                  message:
+                    type: string
+                  data:
+                    type: object
+                required:
+                  - code
+                  - data
+
+  /v1/users/search:
+    post:
+      operationId: searchUsers
+      summary: 条件检索用户
+      description: 按关键字、分页条件检索用户列表。
+      x-api-purpose: 用户列表检索
+      x-required-permissions:
+        - user.read
+      requestBody:
+        base_url_override: https://api.example.com
+        path: []
+        query:
+          - name: page
+            type: integer
+            required: true
+            description: 页码（从1开始）
+          - name: pageSize
+            type: integer
+            required: true
+            description: 每页数量
+        body:
+          - name: keyword
+            type: string
+            required: false
+            description: 检索关键字
+          - name: status
+            type: string
+            required: false
+            description: 用户状态
+        headers:
+          - name: X-Biz-Trace
+            type: string
+            required: false
+            description: 业务追踪ID
+      responses:
+        "200":
+          description: 查询成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                      list:
+                        type: array
+                        items:
+                          type: object
+                required:
+                  - code
+                  - data
+

@@ -1,0 +1,2049 @@
+﻿app:
+  description: Call external agent APIs over HTTP and normalize the response into a renderable table and ECharts chart.
+  icon: "\U0001F4CA"
+  icon_background: '#D5F5FF'
+  icon_type: emoji
+  mode: advanced-chat
+  name: 智能问数
+  use_icon_as_answer_icon: false
+dependencies: []
+kind: app
+version: 0.6.0
+workflow:
+  conversation_variables: []
+  environment_variables: []
+  features:
+    file_upload:
+      allowed_file_extensions:
+      - .JPG
+      - .JPEG
+      - .PNG
+      - .GIF
+      - .WEBP
+      - .SVG
+      allowed_file_types:
+      - image
+      allowed_file_upload_methods:
+      - local_file
+      - remote_url
+      enabled: false
+      fileUploadConfig:
+        attachment_image_file_size_limit: 2
+        audio_file_size_limit: 50
+        batch_count_limit: 5
+        file_size_limit: 15
+        file_upload_limit: 20
+        image_file_batch_limit: 10
+        image_file_size_limit: 10
+        single_chunk_attachment_limit: 10
+        video_file_size_limit: 100
+        workflow_file_upload_limit: 10
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+      number_limits: 3
+    opening_statement: 请输入你的查询需求，例如：查询全部项目信息，并根据项目状态生成柱状图。
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions:
+    - 查询全部项目信息，并根据项目状态生成柱状图
+    - 统计最近 7 天销售额并生成柱状图
+    - 统计各产品销量占比并生成饼图
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: answer
+      id: code-to-answer
+      source: normalize_chart_response
+      sourceHandle: source
+      target: answer
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: start
+        targetType: agent
+      id: start-source-1776937315244-target
+      source: start
+      sourceHandle: source
+      target: '1776937315244'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: agent
+        targetType: code
+      id: 1776937315244-source-normalize_chart_response-target
+      source: '1776937315244'
+      sourceHandle: source
+      target: normalize_chart_response
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    nodes:
+    - data:
+        desc: ''
+        selected: false
+        title: 开始
+        type: start
+        variables:
+        - label: context_token
+          hide: true
+          max_length: 8192
+          options: []
+          required: false
+          type: text-input
+          variable: context_token
+      height: 73
+      id: start
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        code: |-
+          import json
+          import re
+          from typing import Any, Tuple
+
+
+          CHART_HINT_KEYS = {
+              "series",
+              "xAxis",
+              "yAxis",
+              "legend",
+              "tooltip",
+              "dataset",
+              "title",
+              "grid",
+              "radar",
+              "geo",
+              "visualMap",
+              "parallelAxis",
+              "angleAxis",
+              "radiusAxis",
+          }
+
+          CHART_KEYS = [
+              "option",
+              "chart_option",
+              "option_json",
+              "echarts",
+              "chart",
+              "result",
+              "output",
+              "answer",
+              "content",
+              "message",
+              "data",
+              "payload",
+              "body",
+              "response",
+          ]
+
+          TABLE_KEYS = [
+              "table_markdown",
+              "markdown_table",
+              "table",
+              "table_md",
+              "tableMarkdown",
+          ]
+
+          ROW_KEYS = [
+              "rows",
+              "items",
+              "list",
+              "records",
+              "content",
+              "data",
+              "result",
+              "output",
+              "payload",
+              "body",
+          ]
+
+          LOG_ROW_KEYS = {
+              "id",
+              "parent_id",
+              "error",
+              "status",
+              "label",
+              "node_id",
+              "metadata",
+              "started_at",
+              "finished_at",
+              "elapsed_time",
+              "tool_call_id",
+              "tool_call_name",
+              "tool_call_input",
+              "tool_response",
+              "llm_response",
+          }
+
+          LOG_LABEL_HINTS = (
+              "ROUND",
+              "CALL ",
+              "THOUGHT",
+          )
+
+          NOISE_CONTAINER_KEYS = {
+              "apis",
+              "summary",
+              "next_action",
+              "tool_responses",
+              "llm_response",
+              "usage",
+              "files",
+          }
+
+          API_CATALOG_KEYS = {
+              "api_id",
+              "api_name",
+              "api_purpose",
+              "app_id",
+              "app_name",
+              "path",
+              "http_method",
+              "invoke_hint",
+              "routing_score",
+              "final_rerank_score",
+              "model_rerank_score",
+          }
+
+          COLUMN_LABELS = {
+              "id": "ID",
+              "name": "名称",
+              "code": "编码",
+              "status": "状态",
+              "attachment": "附件",
+              "remark": "备注",
+              "comment": "备注",
+              "memo": "备注",
+              "createBy": "创建人",
+              "createTime": "创建时间",
+              "updateBy": "更新人",
+              "updateTime": "更新时间",
+              "projectCode": "项目编码",
+              "projectName": "项目名称",
+              "projectStatus": "项目状态",
+              "projectStatusName": "项目状态",
+              "projectArea": "项目区域",
+              "projectManager": "项目经理",
+              "projectManagerName": "项目经理",
+              "projectType": "项目类型",
+              "projectTypeName": "项目类型",
+              "businessCode": "商机编码",
+              "opportunityCode": "商机编码",
+              "contractCode": "合同编码",
+              "contractId": "合同ID",
+              "contractName": "合同名称",
+              "contractAmount": "合同金额",
+              "contractSplitNumber": "合同拆分次数",
+              "customerName": "客户名称",
+              "productName": "产品名称",
+              "ownerName": "负责人",
+              "region": "区域",
+              "area": "区域",
+              "departmentName": "部门名称",
+              "companyName": "公司名称",
+              "startDate": "开始日期",
+              "endDate": "结束日期",
+              "planStartTime": "计划开始时间",
+              "planEndTime": "计划结束时间",
+              "plannedStartTime": "计划开始时间",
+              "plannedEndTime": "计划结束时间",
+              "detailAddress": "详细地址",
+              "address": "详细地址",
+              "actualEndDate": "实际结束日期",
+              "progress": "进度",
+              "delFlag": "删除标记",
+          }
+
+          PREFERRED_COLUMN_GROUPS = [
+              ["projectCode", "code"],
+              ["projectName", "name"],
+              ["projectManager", "projectManagerName", "managerName", "ownerName"],
+              ["projectType", "projectTypeName", "type"],
+              ["projectStatus", "projectStatusName", "status"],
+              ["planStartTime", "plannedStartTime", "startDate"],
+              ["planEndTime", "plannedEndTime", "endDate"],
+              ["businessCode", "opportunityCode"],
+              ["contractCode"],
+              ["detailAddress", "address"],
+              ["projectArea", "region", "area"],
+              ["remark", "comment", "memo"],
+          ]
+
+          PROJECT_STATUS_COLUMNS = {
+              "projectStatus",
+              "projectStatusName",
+          }
+
+          PROJECT_DOMAIN_KEYS = {
+              "projectCode",
+              "projectName",
+              "projectStatus",
+              "projectStatusName",
+              "projectArea",
+              "projectManager",
+              "projectManagerName",
+              "projectType",
+              "projectTypeName",
+              "businessCode",
+              "opportunityCode",
+              "contractCode",
+              "detailAddress",
+          }
+
+          STATUS_VALUE_LABELS = {
+              "0": "未立项",
+              "1": "进行中",
+              "2": "已结束",
+              "3": "已立项",
+              "4": "已取消",
+              "5": "已暂停",
+              "not_started": "未立项",
+              "not-started": "未立项",
+              "pending": "未立项",
+              "draft": "未立项",
+              "init": "未立项",
+              "planning": "未立项",
+              "in_progress": "进行中",
+              "in-progress": "进行中",
+              "processing": "进行中",
+              "running": "进行中",
+              "ongoing": "进行中",
+              "started": "进行中",
+              "active": "进行中",
+              "completed": "已结束",
+              "complete": "已结束",
+              "finished": "已结束",
+              "ended": "已结束",
+              "closed": "已结束",
+              "done": "已结束",
+              "approved": "已立项",
+              "created": "已立项",
+              "established": "已立项",
+              "cancelled": "已取消",
+              "canceled": "已取消",
+              "abort": "已取消",
+              "aborted": "已取消",
+              "stopped": "已暂停",
+              "paused": "已暂停",
+              "hold": "已暂停",
+              "on_hold": "已暂停",
+              "on-hold": "已暂停",
+          }
+
+          TOKEN_LABELS = {
+              "project": "项目",
+              "contract": "合同",
+              "customer": "客户",
+              "product": "产品",
+              "company": "公司",
+              "department": "部门",
+              "dept": "部门",
+              "organization": "组织",
+              "org": "组织",
+              "tenant": "租户",
+              "user": "用户",
+              "member": "成员",
+              "employee": "员工",
+              "staff": "员工",
+              "person": "人员",
+              "owner": "负责人",
+              "manager": "经理",
+              "leader": "负责人",
+              "region": "区域",
+              "area": "区域",
+              "province": "省",
+              "city": "市",
+              "district": "区",
+              "avatar": "头像",
+              "attachment": "附件",
+              "name": "名称",
+              "nick": "昵称",
+              "real": "真实",
+              "display": "显示",
+              "full": "完整",
+              "code": "编码",
+              "no": "编号",
+              "num": "编号",
+              "id": "ID",
+              "status": "状态",
+              "state": "状态",
+              "enabled": "启用",
+              "enable": "启用",
+              "disabled": "禁用",
+              "disable": "禁用",
+              "deleted": "删除",
+              "delete": "删除",
+              "type": "类型",
+              "category": "分类",
+              "kind": "类型",
+              "mode": "模式",
+              "level": "级别",
+              "role": "角色",
+              "post": "岗位",
+              "position": "职位",
+              "permission": "权限",
+              "auth": "认证",
+              "token": "令牌",
+              "source": "来源",
+              "target": "目标",
+              "parent": "父级",
+              "child": "子级",
+              "default": "默认",
+              "email": "邮箱",
+              "mail": "邮箱",
+              "phone": "电话",
+              "mobile": "手机",
+              "telephone": "电话",
+              "address": "地址",
+              "detail": "详细",
+              "desc": "描述",
+              "description": "描述",
+              "title": "标题",
+              "content": "内容",
+              "message": "消息",
+              "amount": "金额",
+              "number": "数量",
+              "count": "数量",
+              "quantity": "数量",
+              "total": "总数",
+              "split": "拆分",
+              "create": "创建",
+              "created": "创建",
+              "creator": "创建人",
+              "update": "更新",
+              "updated": "更新",
+              "updater": "更新人",
+              "time": "时间",
+              "date": "日期",
+              "start": "开始",
+              "end": "结束",
+              "actual": "实际",
+              "plan": "计划",
+              "planned": "计划",
+              "login": "登录",
+              "ip": "IP",
+              "logout": "登出",
+              "last": "最后",
+              "current": "当前",
+              "first": "首次",
+              "progress": "进度",
+              "remark": "备注",
+              "comment": "备注",
+              "memo": "备注",
+              "flag": "标记",
+              "by": "人",
+          }
+
+          CHART_REQUEST_KEYWORDS = (
+              "图",
+              "chart",
+              "echarts",
+              "可视化",
+              "统计图",
+              "柱状",
+              "条形",
+              "折线",
+              "趋势",
+              "饼图",
+              "环形",
+              "圆环",
+              "占比",
+              "占率",
+          )
+
+
+          def _strip_fence(text: str) -> str:
+              stripped = text.strip()
+              match = re.match(r"^```[a-zA-Z0-9_-]*\s*(.*?)\s*```$", stripped, re.S)
+              if match:
+                  return match.group(1).strip()
+              return stripped
+
+
+          def _try_load_json(value: Any) -> Tuple[Any, bool]:
+              if isinstance(value, (dict, list)):
+                  return value, True
+              if not isinstance(value, str):
+                  return value, False
+
+              text = _strip_fence(value)
+              if not text:
+                  return value, False
+
+              # Handle strings like: "tool response: {...}"
+              prefix_match = re.match(r"^\s*tool response:\s*(.+?)\s*\.?\s*$", text, re.S | re.I)
+              if prefix_match:
+                  text = prefix_match.group(1).strip()
+
+              try:
+                  return json.loads(text), True
+              except Exception:
+                  decoder = json.JSONDecoder()
+                  for match in re.finditer(r"[\{\[]", text):
+                      start = match.start()
+                      try:
+                          parsed, end = decoder.raw_decode(text[start:])
+                      except Exception:
+                          continue
+
+                      suffix = text[start + end:].strip()
+                      if not suffix or suffix in {".", "。"}:
+                          return parsed, True
+
+                  return value, False
+
+
+          def _is_scalar(value: Any) -> bool:
+              return value is None or isinstance(value, (str, int, float, bool))
+
+
+          def _looks_like_log_row(row: Any) -> bool:
+              if not isinstance(row, dict):
+                  return False
+
+              keys = set(row.keys())
+              if keys and keys.issubset(LOG_ROW_KEYS | {"data"}):
+                  return True
+
+              label = row.get("label")
+              if isinstance(label, str) and any(hint in label.upper() for hint in LOG_LABEL_HINTS):
+                  return True
+
+              row_id = row.get("id")
+              node_id = row.get("node_id")
+              status = row.get("status")
+              if isinstance(row_id, str) and isinstance(node_id, str) and isinstance(status, str):
+                  return True
+
+              data = row.get("data")
+              if isinstance(data, dict) and any(key in data for key in ("tool_input", "tool_name", "tool_call_id", "tool_response")):
+                  return True
+
+              return False
+
+
+          def _looks_like_api_catalog_row(row: Any) -> bool:
+              if not isinstance(row, dict):
+                  return False
+
+              keys = set(row.keys())
+              if "api_id" in keys and "api_name" in keys:
+                  return True
+              if len(keys & API_CATALOG_KEYS) >= 3:
+                  return True
+              return False
+
+
+          def _looks_like_business_rows(rows: list[Any]) -> bool:
+              dict_rows = [row for row in rows if isinstance(row, dict)]
+              if not dict_rows:
+                  return False
+
+              log_like = sum(1 for row in dict_rows if _looks_like_log_row(row))
+              api_catalog_like = sum(1 for row in dict_rows if _looks_like_api_catalog_row(row))
+              if log_like == len(dict_rows) or api_catalog_like == len(dict_rows):
+                  return False
+
+              max_scalar_columns = 0
+              for row in dict_rows[:5]:
+                  if _looks_like_log_row(row) or _looks_like_api_catalog_row(row):
+                      continue
+                  scalar_count = sum(1 for value in row.values() if _is_scalar(value))
+                  max_scalar_columns = max(max_scalar_columns, scalar_count)
+
+              return max_scalar_columns >= 2
+
+
+          def _extract_invoke_api_payloads(value: Any, depth: int = 0) -> list[Any]:
+              if depth > 8 or value in (None, ""):
+                  return []
+
+              payloads: list[Any] = []
+              parsed, parsed_ok = _try_load_json(value)
+              if parsed_ok and parsed is not value:
+                  payloads.extend(_extract_invoke_api_payloads(parsed, depth + 1))
+                  value = parsed
+
+              if isinstance(value, list):
+                  for item in value:
+                      payloads.extend(_extract_invoke_api_payloads(item, depth + 1))
+                  return payloads
+
+              if isinstance(value, dict):
+                  tool_call_name = value.get("tool_call_name")
+                  tool_response = value.get("tool_response")
+                  if tool_call_name == "invoke_api" and tool_response is not None:
+                      parsed_tool_response, tool_ok = _try_load_json(tool_response)
+                      payloads.append(parsed_tool_response if tool_ok else tool_response)
+
+                  for key, item in value.items():
+                      if key in {"tool_call_input", "llm_response", "usage"}:
+                          continue
+                      payloads.extend(_extract_invoke_api_payloads(item, depth + 1))
+
+              return payloads
+
+
+          def _is_chart_option(value: Any) -> bool:
+              if not isinstance(value, dict):
+                  return False
+              keys = set(value.keys())
+              if "series" in keys:
+                  return True
+              return len(keys & CHART_HINT_KEYS) >= 2
+
+
+          def _extract_openai_like_content(payload: dict) -> Any:
+              choices = payload.get("choices")
+              if not isinstance(choices, list):
+                  return None
+
+              for choice in choices:
+                  if not isinstance(choice, dict):
+                      continue
+
+                  message = choice.get("message")
+                  if isinstance(message, dict):
+                      content = message.get("content")
+                      if isinstance(content, str) and content.strip():
+                          return content
+                      if isinstance(content, list):
+                          parts = []
+                          for item in content:
+                              if not isinstance(item, dict):
+                                  continue
+                              text = item.get("text")
+                              if isinstance(text, str) and text.strip():
+                                  parts.append(text)
+                              alt_content = item.get("content")
+                              if isinstance(alt_content, str) and alt_content.strip():
+                                  parts.append(alt_content)
+                          if parts:
+                              return "\n".join(parts)
+
+                  text = choice.get("text")
+                  if isinstance(text, str) and text.strip():
+                      return text
+
+              return None
+
+
+          def _extract_markdown_table(text: str) -> str | None:
+              blocks = re.findall(r"(?:^\|.*\|\s*$\n?)+", text, flags=re.M)
+              separator_pattern = re.compile(r"^\|\s*:?-{3,}[\s\-|:]*\|\s*$")
+              for block in blocks:
+                  lines = [line.rstrip() for line in block.strip().splitlines() if line.strip()]
+                  if len(lines) >= 2 and separator_pattern.match(lines[1]):
+                      return "\n".join(lines)
+              return None
+
+
+          def _search_explicit_markdown_table(value: Any, depth: int = 0) -> str | None:
+              if depth > 8 or value in (None, ""):
+                  return None
+
+              parsed, parsed_ok = _try_load_json(value)
+              if parsed_ok and parsed is not value:
+                  found = _search_explicit_markdown_table(parsed, depth + 1)
+                  if found is not None:
+                      return found
+                  value = parsed
+
+              if isinstance(value, str):
+                  return _extract_markdown_table(value)
+
+              if isinstance(value, list):
+                  for item in value:
+                      found = _search_explicit_markdown_table(item, depth + 1)
+                      if found is not None:
+                          return found
+                  return None
+
+              if isinstance(value, dict):
+                  openai_like = _extract_openai_like_content(value)
+                  if openai_like is not None:
+                      found = _search_explicit_markdown_table(openai_like, depth + 1)
+                      if found is not None:
+                          return found
+
+                  for key, item in value.items():
+                      if key in {"tool_call_input", "usage"}:
+                          continue
+                      found = _search_explicit_markdown_table(item, depth + 1)
+                      if found is not None:
+                          return found
+
+              return None
+
+
+          def _search_display_plan(value: Any, depth: int = 0) -> dict[str, Any] | None:
+              if depth > 8 or value in (None, ""):
+                  return None
+
+              parsed, parsed_ok = _try_load_json(value)
+              if parsed_ok and parsed is not value:
+                  found = _search_display_plan(parsed, depth + 1)
+                  if found is not None:
+                      return found
+                  value = parsed
+
+              if isinstance(value, str):
+                  fenced = re.search(r"```(?:json)?\s*(.*?)\s*```", value, re.S)
+                  if fenced:
+                      parsed_inner, inner_ok = _try_load_json(fenced.group(1).strip())
+                      if inner_ok:
+                          return _search_display_plan(parsed_inner, depth + 1)
+                  return None
+
+              if isinstance(value, list):
+                  for item in value:
+                      found = _search_display_plan(item, depth + 1)
+                      if found is not None:
+                          return found
+                  return None
+
+              if isinstance(value, dict):
+                  if isinstance(value.get("table_columns"), list) and isinstance(value.get("table_rows"), list):
+                      return value
+
+                  openai_like = _extract_openai_like_content(value)
+                  if openai_like is not None:
+                      found = _search_display_plan(openai_like, depth + 1)
+                      if found is not None:
+                          return found
+
+                  for key in ["result", "output", "answer", "content", "message", "data", "payload", "body"]:
+                      if key in value:
+                          found = _search_display_plan(value[key], depth + 1)
+                          if found is not None:
+                              return found
+
+              return None
+
+
+          def _search_chart_candidate(value: Any, depth: int = 0) -> Any:
+              if depth > 8 or value in (None, ""):
+                  return None
+
+              parsed, parsed_ok = _try_load_json(value)
+              if parsed_ok and parsed is not value:
+                  found = _search_chart_candidate(parsed, depth + 1)
+                  if found is not None:
+                      return found
+                  value = parsed
+
+              if _is_chart_option(value):
+                  return value
+
+              if isinstance(value, str):
+                  text = value.strip()
+                  if text.startswith("```echarts"):
+                      return text
+
+                  fenced = re.search(r"```(?:echarts|json)?\s*(.*?)\s*```", text, re.S)
+                  if fenced:
+                      inner = fenced.group(1).strip()
+                      parsed_inner, inner_ok = _try_load_json(inner)
+                      if inner_ok:
+                          found = _search_chart_candidate(parsed_inner, depth + 1)
+                          if found is not None:
+                              return found
+                      return f"```echarts\n{inner}\n```"
+                  return None
+
+              if isinstance(value, list):
+                  for item in value:
+                      found = _search_chart_candidate(item, depth + 1)
+                      if found is not None:
+                          return found
+                  return None
+
+              if isinstance(value, dict):
+                  tool_call_name = value.get("tool_call_name")
+                  tool_response = value.get("tool_response")
+                  if tool_call_name == "invoke_api" and tool_response is not None:
+                      found = _search_chart_candidate(tool_response, depth + 1)
+                      if found is not None:
+                          return found
+
+                  for key in CHART_KEYS:
+                      if key in value:
+                          found = _search_chart_candidate(value[key], depth + 1)
+                          if found is not None:
+                              return found
+
+                  openai_like = _extract_openai_like_content(value)
+                  if openai_like is not None:
+                      found = _search_chart_candidate(openai_like, depth + 1)
+                      if found is not None:
+                          return found
+
+                  for item in value.values():
+                      found = _search_chart_candidate(item, depth + 1)
+                      if found is not None:
+                          return found
+
+              return None
+
+
+          def _search_table_candidate(value: Any, depth: int = 0) -> Any:
+              if depth > 8 or value in (None, ""):
+                  return None
+
+              parsed, parsed_ok = _try_load_json(value)
+              if parsed_ok and parsed is not value:
+                  found = _search_table_candidate(parsed, depth + 1)
+                  if found is not None:
+                      return found
+                  value = parsed
+
+              if isinstance(value, str):
+                  table = _extract_markdown_table(value)
+                  if table:
+                      return table
+
+                  fenced = re.search(r"```(?:markdown|md|json)?\s*(.*?)\s*```", value, re.S)
+                  if fenced:
+                      inner = fenced.group(1).strip()
+                      table = _extract_markdown_table(inner)
+                      if table:
+                          return table
+                  return None
+
+              if isinstance(value, list):
+                  for item in value:
+                      found = _search_table_candidate(item, depth + 1)
+                      if found is not None:
+                          return found
+                  if _looks_like_business_rows(value):
+                      return [
+                          row for row in value
+                          if isinstance(row, dict)
+                          and not _looks_like_log_row(row)
+                          and not _looks_like_api_catalog_row(row)
+                      ]
+                  return None
+
+              if isinstance(value, dict):
+                  tool_call_name = value.get("tool_call_name")
+                  tool_response = value.get("tool_response")
+                  if tool_call_name == "invoke_api" and tool_response is not None:
+                      found = _search_table_candidate(tool_response, depth + 1)
+                      if found is not None:
+                          return found
+
+                  for key in TABLE_KEYS:
+                      if key in value:
+                          found = _search_table_candidate(value[key], depth + 1)
+                          if found is not None:
+                              return found
+
+                  for key in ROW_KEYS:
+                      if key in value:
+                          found = _search_table_candidate(value[key], depth + 1)
+                          if found is not None:
+                              return found
+
+                  openai_like = _extract_openai_like_content(value)
+                  if openai_like is not None:
+                      found = _search_table_candidate(openai_like, depth + 1)
+                      if found is not None:
+                          return found
+
+                  for key, item in value.items():
+                      if key in NOISE_CONTAINER_KEYS:
+                          continue
+                      found = _search_table_candidate(item, depth + 1)
+                      if found is not None:
+                          return found
+
+              return None
+
+
+          def _search_rows_candidate(value: Any, depth: int = 0) -> list[dict[str, Any]] | None:
+              if depth > 8 or value in (None, ""):
+                  return None
+
+              parsed, parsed_ok = _try_load_json(value)
+              if parsed_ok and parsed is not value:
+                  found = _search_rows_candidate(parsed, depth + 1)
+                  if found is not None:
+                      return found
+                  value = parsed
+
+              if isinstance(value, list):
+                  if _looks_like_business_rows(value):
+                      rows = [
+                          row for row in value
+                          if isinstance(row, dict)
+                          and not _looks_like_log_row(row)
+                          and not _looks_like_api_catalog_row(row)
+                      ]
+                      if rows:
+                          return rows
+
+                  for item in value:
+                      found = _search_rows_candidate(item, depth + 1)
+                      if found is not None:
+                          return found
+                  return None
+
+              if isinstance(value, dict):
+                  tool_call_name = value.get("tool_call_name")
+                  tool_response = value.get("tool_response")
+                  if tool_call_name == "invoke_api" and tool_response is not None:
+                      found = _search_rows_candidate(tool_response, depth + 1)
+                      if found is not None:
+                          return found
+
+                  for key in ROW_KEYS:
+                      if key in value:
+                          found = _search_rows_candidate(value[key], depth + 1)
+                          if found is not None:
+                              return found
+
+                  for key, item in value.items():
+                      if key in NOISE_CONTAINER_KEYS:
+                          continue
+                      found = _search_rows_candidate(item, depth + 1)
+                      if found is not None:
+                          return found
+
+              return None
+
+
+          def _format_cell(value: Any) -> str:
+              if value is None:
+                  return ""
+              if isinstance(value, bool):
+                  return "true" if value else "false"
+              text = str(value).replace("\r", " ").replace("\n", " ")
+              return text.replace("|", "\\|").strip()
+
+
+          def _translate_status_value(value: Any) -> Any:
+              if value is None:
+                  return value
+
+              text = str(value).strip()
+              if not text:
+                  return value
+
+              normalized = text.lower().replace(" ", "_")
+              if normalized in STATUS_VALUE_LABELS:
+                  return STATUS_VALUE_LABELS[normalized]
+
+              if text in STATUS_VALUE_LABELS:
+                  return STATUS_VALUE_LABELS[text]
+
+              return value
+
+
+          def _looks_like_project_rows(rows: list[dict[str, Any]]) -> bool:
+              project_key_hits = 0
+              for key in PROJECT_DOMAIN_KEYS:
+                  if any(key in row and _is_scalar(row.get(key)) for row in rows):
+                      project_key_hits += 1
+              return project_key_hits >= 2
+
+
+          def _should_translate_status(column: str, rows: list[dict[str, Any]]) -> bool:
+              if column in PROJECT_STATUS_COLUMNS:
+                  return True
+              if column == "status" and _looks_like_project_rows(rows):
+                  return True
+              return False
+
+
+          def _format_cell_for_column(column: str, value: Any, rows: list[dict[str, Any]]) -> str:
+              if _should_translate_status(column, rows):
+                  value = _translate_status_value(value)
+              return _format_cell(value)
+
+
+          def _has_chinese(text: str) -> bool:
+              return bool(re.search(r"[\u4e00-\u9fff]", text))
+
+
+          def _split_field_key(key: str) -> list[str]:
+              spaced = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1 \2", key)
+              spaced = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", spaced)
+              parts = [part for part in re.split(r"[_\-\s]+", spaced) if part]
+              if len(parts) > 1:
+                  return parts
+
+              compact = re.sub(r"[^A-Za-z0-9]+", "", key).lower()
+              if not compact or compact == key.lower() and compact not in TOKEN_LABELS:
+                  tokens: list[str] = []
+                  remaining = compact
+                  token_candidates = sorted(TOKEN_LABELS.keys(), key=len, reverse=True)
+                  while remaining:
+                      matched = next((token for token in token_candidates if remaining.startswith(token)), None)
+                      if not matched:
+                          return parts
+                      tokens.append(matched)
+                      remaining = remaining[len(matched):]
+                  if len(tokens) > 1:
+                      return tokens
+
+              return parts
+
+
+          def _label_column(key: str) -> str:
+              if key in COLUMN_LABELS:
+                  return COLUMN_LABELS[key]
+
+              if _has_chinese(key):
+                  return key
+
+              parts = _split_field_key(key)
+              if not parts:
+                  return key
+
+              translated_parts = []
+              lowered_parts = [part.lower() for part in parts]
+              for index, part in enumerate(parts):
+                  lowered = lowered_parts[index]
+                  translated = TOKEN_LABELS.get(lowered)
+                  if lowered == "number" and index > 0 and lowered_parts[index - 1] in {"employee", "user", "member", "project", "contract", "customer", "product"}:
+                      translated = "编号"
+                  if lowered == "number" and index > 0 and lowered_parts[index - 1] in {"phone", "mobile", "telephone"}:
+                      translated = "号码"
+                  if lowered == "id" and index > 0 and lowered_parts[index - 1] in {"tenant", "dept", "department", "user", "project", "contract", "customer", "product", "company", "organization", "org"}:
+                      translated = "ID"
+                  if not translated:
+                      return key
+                  translated_parts.append(translated)
+
+              return "".join(translated_parts)
+
+
+          def _normalize_label(key: str, label: str) -> str:
+              if label and _has_chinese(label):
+                  return label
+              inferred = _label_column(key)
+              if inferred and inferred != key:
+                  return inferred
+              return label or key
+
+
+          def _score_column(key: str) -> int:
+              lowered = key.lower()
+              score = 0
+
+              high_priority_exact = {
+                  "name", "username", "userName", "nickName", "realName", "fullName",
+                  "loginName", "deptName", "departmentName", "roleName", "status",
+                  "statusName", "email", "phone", "mobile", "telephone",
+                  "employeeNumber", "jobNumber", "code", "projectCode", "projectName",
+              }
+              if key in high_priority_exact or lowered in {item.lower() for item in high_priority_exact}:
+                  score += 120
+
+              if "name" in lowered:
+                  score += 90
+              if any(token in lowered for token in ["email", "phone", "mobile", "telephone"]):
+                  score += 80
+              if any(token in lowered for token in ["dept", "department", "role", "title", "position"]):
+                  score += 70
+              if any(token in lowered for token in ["status", "state", "enabled", "disabled"]):
+                  score += 65
+              if any(token in lowered for token in ["login", "date", "time", "created", "updated"]):
+                  score += 55
+              if any(token in lowered for token in ["code", "number", "num", "no"]):
+                  score += 45
+              if lowered.endswith("id"):
+                  score -= 20
+              if any(token in lowered for token in ["tenantid", "defaulttenantid", "deptid", "userid", "roleid", "parentid"]):
+                  score -= 45
+              if any(token in lowered for token in ["flag", "avatar", "icon", "logo", "deleted", "delete", "delflag"]):
+                  score -= 60
+
+              return score
+
+
+          def _collect_columns(rows: list[dict[str, Any]], max_columns: int = 10) -> list[str]:
+              available_scalar_keys: set[str] = set()
+              first_seen_order: dict[str, int] = {}
+              for row in rows:
+                  for key, value in row.items():
+                      if _is_scalar(value):
+                          available_scalar_keys.add(key)
+                          if key not in first_seen_order:
+                              first_seen_order[key] = len(first_seen_order)
+
+              if _looks_like_project_rows(rows):
+                  preferred_columns: list[str] = []
+                  for group in PREFERRED_COLUMN_GROUPS:
+                      for candidate in group:
+                          if candidate in available_scalar_keys:
+                              preferred_columns.append(candidate)
+                              break
+
+                  if preferred_columns:
+                      return preferred_columns
+
+              scored_columns = sorted(
+                  available_scalar_keys,
+                  key=lambda key: (-_score_column(key), first_seen_order.get(key, 9999), key.lower()),
+              )
+              return scored_columns[:max_columns]
+
+
+          def _normalize_plan_columns(columns: Any, rows: Any, max_columns: int = 12) -> list[dict[str, str]]:
+              normalized: list[dict[str, str]] = []
+
+              if isinstance(columns, list):
+                  for column in columns:
+                      key = ""
+                      label = ""
+                      if isinstance(column, str):
+                          key = column
+                          label = column
+                      elif isinstance(column, dict):
+                          key_value = column.get("key") or column.get("field") or column.get("dataIndex") or column.get("name")
+                          label_value = column.get("label") or column.get("title") or column.get("header") or column.get("display_name")
+                          key = str(key_value).strip() if key_value is not None else ""
+                          label = str(label_value).strip() if label_value is not None else ""
+
+                      if not key:
+                          continue
+                      normalized.append({
+                          "key": key,
+                          "label": _normalize_label(key, label),
+                      })
+
+              if not normalized and isinstance(rows, list):
+                  seen: set[str] = set()
+                  for row in rows:
+                      if not isinstance(row, dict):
+                          continue
+                      for key, value in row.items():
+                          if key in seen or not _is_scalar(value):
+                              continue
+                          seen.add(key)
+                          normalized.append({
+                              "key": key,
+                              "label": _label_column(key),
+                          })
+                          if len(normalized) >= max_columns:
+                              return normalized
+
+              return normalized[:max_columns]
+
+
+          def _get_plan_rows(plan: dict[str, Any]) -> list[Any]:
+              rows = plan.get("table_rows")
+              if rows is None:
+                  rows = plan.get("rows")
+              return rows if isinstance(rows, list) else []
+
+
+          def _get_plan_chart(plan: dict[str, Any]) -> Any:
+              for key in ["chart_option", "option", "echarts", "chart"]:
+                  value = plan.get(key)
+                  if value not in (None, "", {}, []):
+                      return value
+              return None
+
+
+          def _get_plan_chart_dimension(plan: dict[str, Any]) -> str | None:
+              for key in ["chart_dimension_key", "dimension_key", "group_by_key", "group_key"]:
+                  value = plan.get(key)
+                  if isinstance(value, str):
+                      normalized = value.strip()
+                      if normalized:
+                          return normalized
+                  elif isinstance(value, dict):
+                      candidate = value.get("key") or value.get("field") or value.get("value")
+                      if isinstance(candidate, str):
+                          normalized = candidate.strip()
+                          if normalized:
+                              return normalized
+              return None
+
+
+          def _get_plan_chart_dimension_label(plan: dict[str, Any]) -> str | None:
+              for key in ["chart_dimension_label", "dimension_label", "group_by_label", "group_label"]:
+                  value = plan.get(key)
+                  if isinstance(value, str):
+                      normalized = value.strip()
+                      if normalized:
+                          return normalized
+                  elif isinstance(value, dict):
+                      candidate = value.get("label") or value.get("title") or value.get("name")
+                      if isinstance(candidate, str):
+                          normalized = candidate.strip()
+                          if normalized:
+                              return normalized
+              return None
+
+
+          def _build_display_plan_table(plan: dict[str, Any]) -> str:
+              markdown = plan.get("table_markdown") or plan.get("markdown_table")
+              if isinstance(markdown, str) and _extract_markdown_table(markdown):
+                  return _extract_markdown_table(markdown) or ""
+
+              rows = _get_plan_rows(plan)
+              columns = _normalize_plan_columns(plan.get("table_columns") or plan.get("columns"), rows)
+              if not rows or not columns:
+                  return markdown.strip() if isinstance(markdown, str) else ""
+
+              header_labels = ["序号", *[column["label"] for column in columns]]
+              header = "| " + " | ".join(_format_cell(label) for label in header_labels) + " |"
+              separator = "| " + " | ".join(["---"] * len(header_labels)) + " |"
+              body = []
+
+              for index, row in enumerate(rows[:20]):
+                  values = [_format_cell(index + 1)]
+                  for column in columns:
+                      key = column["key"]
+                      if isinstance(row, dict):
+                          values.append(_format_cell(row.get(key, "")))
+                      elif isinstance(row, list):
+                          column_index = columns.index(column)
+                          values.append(_format_cell(row[column_index] if column_index < len(row) else ""))
+                      else:
+                          values.append(_format_cell(row))
+                  body.append("| " + " | ".join(values) + " |")
+
+              return "\n".join([header, separator, *body])
+
+
+          def _build_table_markdown(value: Any) -> str:
+              if isinstance(value, str):
+                  return _extract_markdown_table(value) or value.strip()
+
+              if isinstance(value, list):
+                  rows = [row for row in value if isinstance(row, dict)]
+                  if not rows:
+                      return ""
+
+                  columns = _collect_columns(rows)
+                  if not columns:
+                      return ""
+
+                  header_labels = ["序号", *[_label_column(column) for column in columns]]
+                  header = "| " + " | ".join(header_labels) + " |"
+                  separator = "| " + " | ".join(["---"] * len(header_labels)) + " |"
+                  body = [
+                      "| " + " | ".join([
+                          _format_cell(index + 1),
+                          *[_format_cell_for_column(column, row.get(column), rows) for column in columns],
+                      ]) + " |"
+                      for index, row in enumerate(rows)
+                  ]
+                  return "\n".join([header, separator, *body])
+
+              return ""
+
+
+          def _build_chart_markdown(value: Any) -> dict[str, str]:
+              if isinstance(value, str):
+                  text = value.strip()
+                  if text.startswith("```echarts"):
+                      return {
+                          "markdown": text,
+                          "option_json": _strip_fence(text),
+                      }
+
+                  loaded, ok = _try_load_json(text)
+                  if ok:
+                      pretty = json.dumps(loaded, ensure_ascii=False, indent=2)
+                      return {
+                          "markdown": f"```echarts\n{pretty}\n```",
+                          "option_json": json.dumps(loaded, ensure_ascii=False),
+                      }
+
+                  raise ValueError("string value is not valid echarts json")
+
+              pretty = json.dumps(value, ensure_ascii=False, indent=2)
+              return {
+                  "markdown": f"```echarts\n{pretty}\n```",
+                  "option_json": json.dumps(value, ensure_ascii=False),
+              }
+
+
+          def _infer_chart_preference(text: str) -> str:
+              lowered = text.lower()
+              if any(keyword in text for keyword in ["饼图", "占比", "占率", "环形图", "圆环图"]) or "pie" in lowered:
+                  return "pie"
+              if any(keyword in text for keyword in ["折线图", "趋势"]) or "line" in lowered:
+                  return "line"
+              if any(keyword in text for keyword in ["柱状图", "条形图"]) or "bar" in lowered:
+                  return "bar"
+              return "bar"
+
+
+          def _should_generate_chart(query_text: str) -> bool:
+              lowered = query_text.lower()
+              return any(keyword in query_text for keyword in CHART_REQUEST_KEYWORDS) or any(
+                  keyword in lowered for keyword in CHART_REQUEST_KEYWORDS if keyword.isascii()
+              )
+
+
+          def _match_text(text: str) -> str:
+              return re.sub(r"[^0-9A-Za-z\u4e00-\u9fff]+", "", text).lower()
+
+
+          def _row_value(row: Any, columns: list[dict[str, str]], column: dict[str, str]) -> Any:
+              if isinstance(row, dict):
+                  return row.get(column["key"])
+              if isinstance(row, list):
+                  column_index = columns.index(column)
+                  return row[column_index] if column_index < len(row) else None
+              return None
+
+
+          def _find_chart_dimension(columns: list[dict[str, str]], rows: list[Any], query_text: str) -> dict[str, str] | None:
+              if not columns:
+                  return None
+
+              query_match = _match_text(query_text)
+              scored: list[tuple[int, int, dict[str, str]]] = []
+              for index, column in enumerate(columns):
+                  key = column["key"]
+                  label = column["label"]
+                  label_match = _match_text(label)
+                  key_match = _match_text(key)
+                  score = 0
+
+                  if label_match and label_match in query_match:
+                      score += 100
+                  if key_match and key_match in query_match:
+                      score += 80
+
+                  chinese_parts = re.findall(r"[\u4e00-\u9fff]{2,}", label)
+                  if any(part in query_text for part in chinese_parts):
+                      score += 50
+
+                  if any(token in label_match or token in key_match for token in ["状态", "status", "类型", "type", "分类", "category", "部门", "dept", "department"]):
+                      score += 70
+                  if any(token in label_match or token in key_match for token in ["负责人", "经理", "manager", "owner", "区域", "region", "area"]):
+                      score += 45
+
+                  non_empty_values = [
+                      str(_row_value(row, columns, column)).strip()
+                      for row in rows
+                      if _row_value(row, columns, column) not in (None, "")
+                  ]
+                  unique_count = len(set(non_empty_values))
+                  if unique_count >= 2:
+                      score += 20
+                  if 2 <= unique_count <= 20:
+                      score += 20
+                  if unique_count <= 1:
+                      score -= 60
+                  if unique_count == len(non_empty_values) and len(non_empty_values) > 5:
+                      score -= 30
+                  if any(token in key_match for token in ["id", "code", "phone", "mobile", "email", "time", "date", "ip"]):
+                      score -= 40
+                  if any(token in label_match for token in ["编码", "编号", "名称", "日期", "时间"]):
+                      score -= 40
+                  if any(token in label_match or token in key_match for token in ["状态", "status", "state"]) and not any(
+                      token in query_match for token in ["状态", "status", "state"]
+                  ):
+                      score -= 45
+
+                  if score > 0:
+                      scored.append((score, -index, column))
+
+              if scored:
+                  scored.sort(reverse=True, key=lambda item: (item[0], item[1]))
+                  return scored[0][2]
+
+              for column in columns:
+                  values = [
+                      str(_row_value(row, columns, column)).strip()
+                      for row in rows
+                      if _row_value(row, columns, column) not in (None, "")
+                  ]
+                  unique_count = len(set(values))
+                  if 2 <= unique_count <= 20:
+                      return column
+
+              return columns[0]
+
+
+          def _query_requests_grouping(query_text: str) -> bool:
+              lowered = query_text.lower()
+              return any(keyword in query_text for keyword in ["按", "根据", "按照", "区分", "分类", "统计", "切换"]) or any(
+                  keyword in lowered for keyword in ["group by", "group", "count", "chart"]
+              )
+
+
+          def _build_group_count_chart_option(plan: dict[str, Any], query_text: str) -> dict[str, Any] | None:
+              rows = _get_plan_rows(plan)
+              columns = _normalize_plan_columns(plan.get("table_columns") or plan.get("columns"), rows)
+              if not rows or not columns:
+                  return None
+
+              dimension = _find_chart_dimension(columns, rows, query_text)
+              if dimension is None:
+                  return None
+
+              counts: dict[str, int] = {}
+              for row in rows:
+                  value = _row_value(row, columns, dimension)
+                  if isinstance(row, dict):
+                      text = _format_cell_for_column(dimension["key"], value, [item for item in rows if isinstance(item, dict)])
+                  else:
+                      text = _format_cell(value)
+                  if not text:
+                      continue
+                  counts[text] = counts.get(text, 0) + 1
+
+              if not counts:
+                  return None
+
+              items = sorted(counts.items(), key=lambda item: (-item[1], item[0]))
+              categories = [item[0] for item in items]
+              values = [item[1] for item in items]
+              chart_type = _infer_chart_preference(query_text)
+              title_text = f"按{dimension['label']}统计"
+
+              if chart_type == "pie":
+                  return {
+                      "title": {"text": title_text, "left": "center"},
+                      "tooltip": {"trigger": "item"},
+                      "legend": {"bottom": 0},
+                      "series": [
+                          {
+                              "name": "数量",
+                              "type": "pie",
+                              "radius": ["42%", "70%"],
+                              "data": [
+                                  {"name": category, "value": counts[category]}
+                                  for category in categories
+                              ],
+                          }
+                      ],
+                  }
+
+              return {
+                  "title": {"text": title_text, "left": "center"},
+                  "tooltip": {"trigger": "axis"},
+                  "grid": {"left": 48, "right": 32, "top": 72, "bottom": 48, "containLabel": True},
+                  "xAxis": {"type": "category", "data": categories, "axisLabel": {"interval": 0}},
+                  "yAxis": {"type": "value", "name": "数量", "minInterval": 1},
+                  "series": [
+                      {
+                          "name": "数量",
+                          "type": chart_type if chart_type in {"bar", "line"} else "bar",
+                          "data": values,
+                          "label": {"show": True, "position": "top"},
+                      }
+                  ],
+              }
+
+
+          def _build_llm_chart_option(plan: dict[str, Any], query_text: str) -> dict[str, Any] | None:
+              rows_candidate = _get_plan_rows(plan)
+              if not rows_candidate:
+                  return None
+
+              rows = [row for row in rows_candidate if isinstance(row, dict)]
+              if not rows:
+                  return None
+
+              dimension_key = _get_plan_chart_dimension(plan)
+              if not dimension_key:
+                  return None
+
+              columns = _normalize_plan_columns(plan.get("table_columns") or plan.get("columns"), rows)
+              if not columns:
+                  return None
+
+              dimension = next(
+                  (
+                      column
+                      for column in columns
+                      if column["key"] == dimension_key or column["key"].lower() == dimension_key.lower()
+                  ),
+                  None,
+              )
+              if dimension is None:
+                  return None
+
+              counts: dict[str, int] = {}
+              for row in rows:
+                  value = _row_value(row, columns, dimension)
+                  if _should_translate_status(dimension["key"], rows):
+                      value = _translate_status_value(value)
+                  text = str(value).strip() if value is not None else ""
+                  if not text:
+                      continue
+                  counts[text] = counts.get(text, 0) + 1
+
+              if not counts:
+                  return None
+
+              items = sorted(counts.items(), key=lambda item: (-item[1], item[0]))
+              categories = [item[0] for item in items]
+              values = [item[1] for item in items]
+              chart_type = _infer_chart_preference(query_text)
+              dimension_label = _get_plan_chart_dimension_label(plan) or dimension["label"]
+              title_text = f"按{dimension_label}统计"
+
+              if chart_type == "pie":
+                  return {
+                      "title": {"text": title_text, "left": "center"},
+                      "tooltip": {"trigger": "item"},
+                      "legend": {"bottom": 0},
+                      "series": [
+                          {
+                              "name": "数量",
+                              "type": "pie",
+                              "radius": ["42%", "70%"],
+                              "data": [
+                                  {"name": category, "value": counts[category]}
+                                  for category in categories
+                              ],
+                          }
+                      ],
+                  }
+
+              return {
+                  "title": {"text": title_text, "left": "center"},
+                  "tooltip": {"trigger": "axis"},
+                  "grid": {"left": 48, "right": 32, "top": 72, "bottom": 48, "containLabel": True},
+                  "xAxis": {"type": "category", "data": categories, "axisLabel": {"interval": 0}},
+                  "yAxis": {"type": "value", "name": "数量", "minInterval": 1},
+                  "series": [
+                      {
+                          "name": "数量",
+                          "type": chart_type if chart_type in {"bar", "line"} else "bar",
+                          "data": values,
+                          "label": {"show": True, "position": "top"},
+                      }
+                  ],
+              }
+
+
+          def _build_default_chart_option(rows_candidate: Any, query_text: str) -> dict[str, Any] | None:
+              if not isinstance(rows_candidate, list):
+                  return None
+
+              rows = [row for row in rows_candidate if isinstance(row, dict)]
+              if not rows:
+                  return None
+
+              columns = [
+                  {"key": column, "label": _label_column(column)}
+                  for column in _collect_columns(rows, max_columns=12)
+              ]
+              if not columns:
+                  return None
+
+              return _build_group_count_chart_option(
+                  {
+                      "table_columns": columns,
+                      "table_rows": rows,
+                  },
+                  query_text,
+              )
+
+
+          def _build_status_chart_option(rows: list[dict[str, Any]], query_text: str = "") -> dict[str, Any] | None:
+              if not _should_generate_chart(query_text):
+                  return None
+
+              status_column = None
+              for candidate in ["projectStatusName", "projectStatus", "status", "statusName"]:
+                  if any(candidate in row for row in rows):
+                      if candidate == "status" and not _looks_like_project_rows(rows):
+                          sample_values = {
+                              str(row.get(candidate)).strip()
+                              for row in rows
+                              if row.get(candidate) not in (None, "")
+                          }
+                          if sample_values and sample_values.issubset({"0", "1"}):
+                              continue
+                      status_column = candidate
+                      break
+
+              if not status_column:
+                  return None
+
+              status_counts: dict[str, int] = {}
+              for row in rows:
+                  status_value = row.get(status_column)
+                  if _should_translate_status(status_column, rows):
+                      status_value = _translate_status_value(status_value)
+                  status_text = str(status_value).strip() if status_value is not None else ""
+                  if not status_text:
+                      continue
+                  status_counts[status_text] = status_counts.get(status_text, 0) + 1
+
+              if not status_counts:
+                  return None
+
+              categories = list(status_counts.keys())
+              values = [status_counts[category] for category in categories]
+              chart_type = _infer_chart_preference(query_text)
+              metric_label = _label_column(status_column)
+              title_text = f"{metric_label}分布"
+
+              common_toolbox = {
+                  "show": True,
+                  "right": 16,
+                  "feature": {
+                      "magicType": {
+                          "show": chart_type != "pie",
+                          "type": ["bar", "line", "stack", "tiled"],
+                          "title": {
+                              "bar": "切换为柱状图",
+                              "line": "切换为折线图",
+                              "stack": "切换为堆叠",
+                              "tiled": "切换为平铺",
+                          },
+                      },
+                      "restore": {
+                          "show": True,
+                          "title": "还原",
+                      },
+                      "saveAsImage": {
+                          "show": True,
+                          "title": "保存为图片",
+                      },
+                  },
+              }
+
+              if chart_type == "pie":
+                  return {
+                      "title": {
+                          "text": title_text,
+                          "left": "center",
+                      },
+                      "tooltip": {
+                          "trigger": "item",
+                      },
+                      "legend": {
+                          "bottom": 0,
+                      },
+                      "toolbox": common_toolbox,
+                      "series": [
+                          {
+                              "name": metric_label,
+                              "type": "pie",
+                              "radius": ["42%", "70%"],
+                              "center": ["50%", "54%"],
+                              "avoidLabelOverlap": False,
+                              "itemStyle": {
+                                  "borderRadius": 8,
+                                  "borderColor": "#fff",
+                                  "borderWidth": 2,
+                              },
+                              "label": {
+                                  "show": True,
+                                  "formatter": "{b}: {c}",
+                              },
+                              "data": [
+                                  {"name": category, "value": status_counts[category]}
+                                  for category in categories
+                              ],
+                          }
+                      ],
+                  }
+
+              return {
+                  "title": {
+                      "text": title_text,
+                      "left": "center",
+                  },
+                  "tooltip": {
+                      "trigger": "axis",
+                      "axisPointer": {
+                          "type": "shadow",
+                      },
+                  },
+                  "toolbox": common_toolbox,
+                  "grid": {
+                      "left": 48,
+                      "right": 32,
+                      "top": 72,
+                      "bottom": 48,
+                      "containLabel": True,
+                  },
+                  "xAxis": {
+                      "type": "category",
+                      "data": categories,
+                      "axisLabel": {
+                          "interval": 0,
+                      },
+                  },
+                  "yAxis": {
+                      "type": "value",
+                      "name": "数量",
+                      "minInterval": 1,
+                  },
+                  "series": [
+                      {
+                          "name": "数量",
+                          "type": chart_type if chart_type in {"bar", "line"} else "bar",
+                          "data": values,
+                          "universalTransition": True,
+                          "itemStyle": {
+                              "borderRadius": [6, 6, 0, 0],
+                          },
+                          "label": {
+                              "show": True,
+                              "position": "top",
+                          },
+                      }
+                  ],
+              }
+
+
+          def _is_empty_value(value: Any) -> bool:
+              return value is None or value == "" or value == [] or value == {}
+
+
+          def main(text: str, agent_json: Any = None, query: str = "") -> dict:
+              query_text = query or text
+              payload = text
+              if not _is_empty_value(agent_json):
+                  payload = agent_json
+              else:
+                  try:
+                      parsed, ok = _try_load_json(text)
+                      if ok:
+                          payload = parsed
+                  except Exception:
+                      payload = text
+
+              display_plan = _search_display_plan(payload)
+              if display_plan is None and payload is not text:
+                  display_plan = _search_display_plan(text)
+
+              if display_plan is not None:
+                  table_markdown = _build_display_plan_table(display_plan)
+                  chart_candidate = _get_plan_chart(display_plan)
+                  if chart_candidate is None:
+                      chart_candidate = _build_llm_chart_option(display_plan, query_text)
+                  if chart_candidate is None:
+                      chart_candidate = _build_group_count_chart_option(display_plan, query_text)
+                  chart_result = (
+                      _build_chart_markdown(chart_candidate)
+                      if chart_candidate is not None
+                      else {"markdown": "", "option_json": ""}
+                  )
+                  parts = [part for part in [table_markdown.strip(), chart_result["markdown"].strip()] if part]
+                  return {
+                      "markdown": "\n\n".join(parts),
+                      "option_json": chart_result["option_json"],
+                  }
+
+              explicit_table_candidate = _search_explicit_markdown_table(payload)
+              if explicit_table_candidate is None and payload is not text:
+                  explicit_table_candidate = _search_explicit_markdown_table(text)
+
+              chart_candidate = None
+              chart_candidate = _search_chart_candidate(payload)
+              if chart_candidate is None and payload is not text:
+                  chart_candidate = _search_chart_candidate(text)
+
+              table_candidate = None
+              rows_candidate = None
+
+              invoke_api_payloads = _extract_invoke_api_payloads(payload)
+              if not invoke_api_payloads and payload is not text:
+                  invoke_api_payloads = _extract_invoke_api_payloads(text)
+
+              for invoke_payload in invoke_api_payloads:
+                  if rows_candidate is None:
+                      rows_candidate = _search_rows_candidate(invoke_payload)
+                  if table_candidate is None and explicit_table_candidate is None:
+                      table_candidate = _search_table_candidate(invoke_payload)
+                  if chart_candidate is None:
+                      chart_candidate = _search_chart_candidate(invoke_payload)
+                  if rows_candidate is not None and table_candidate is not None and chart_candidate is not None:
+                      break
+
+              if table_candidate is None and explicit_table_candidate is None:
+                  table_candidate = _search_table_candidate(payload)
+              if table_candidate is None and explicit_table_candidate is None and payload is not text:
+                  table_candidate = _search_table_candidate(text)
+
+              if rows_candidate is None:
+                  rows_candidate = _search_rows_candidate(payload)
+              if rows_candidate is None and payload is not text:
+                  rows_candidate = _search_rows_candidate(text)
+
+              final_table_candidate = explicit_table_candidate if explicit_table_candidate is not None else table_candidate
+
+              table_markdown = _build_table_markdown(final_table_candidate) if final_table_candidate is not None else ""
+              if chart_candidate is None:
+                  chart_candidate = _build_default_chart_option(rows_candidate, query_text)
+              if chart_candidate is None:
+                  chart_candidate = _build_default_chart_option(final_table_candidate, query_text)
+              chart_result = (
+                  _build_chart_markdown(chart_candidate)
+                  if chart_candidate is not None
+                  else {"markdown": "", "option_json": ""}
+              )
+
+              parts = [part for part in [table_markdown.strip(), chart_result["markdown"].strip()] if part]
+              return {
+                  "markdown": "\n\n".join(parts),
+                  "option_json": chart_result["option_json"],
+              }
+        code_language: python3
+        desc: 将智能体输出规范化为 Markdown 表格和 ECharts 图表代码块。
+        outputs:
+          markdown:
+            children: null
+            type: string
+          option_json:
+            children: null
+            type: string
+        selected: false
+        title: 规范化图表响应
+        type: code
+        variables:
+        - value_selector:
+          - '1776937315244'
+          - text
+          value_type: string
+          variable: text
+        - value_selector:
+          - '1776937315244'
+          - json
+          value_type: object
+          variable: agent_json
+        - value_selector:
+          - sys
+          - query
+          value_type: string
+          variable: query
+      height: 112
+      id: normalize_chart_response
+      position:
+        x: 680
+        y: 237
+      positionAbsolute:
+        x: 680
+        y: 237
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        answer: '{{#normalize_chart_response.markdown#}}'
+        desc: ''
+        selected: false
+        title: 直接回复
+        type: answer
+        variables: []
+      height: 103
+      id: answer
+      position:
+        x: 980
+        y: 282
+      positionAbsolute:
+        x: 980
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        agent_parameters:
+          instruction:
+            type: constant
+            value: |-
+              你是一个可以调用第三方应用 API 并整理结果的执行助手。
+              请严格遵守以下规则：
+              1. 当需要查询第三方应用数据时，每轮用户请求最多调用一次 `list_available_apis`；拿到返回后，立即根据 `summary.next_action.suggested_arguments` 或最匹配的 `invokable` 接口调用 `invoke_api`，不要重复发现接口。
+              2. 不要输出计划性文字、思维链、伪造的工具调用，或任何 `<tool_call>` 风格的标记。
+              3. 如果嵌入应用已经传入 `context_token`，不要再次向用户索要。
+              4. 请求成功时，最终回答必须且只能返回一个 JSON 对象，不要返回 Markdown、解释、总结、备注、trace 信息或其他额外文字。
+              5. JSON 对象必须包含：
+                 - `table_columns`：数组，每项包含 `key` 和 `label`。`key` 使用原始字段名，`label` 必须是你根据接口语义、字段名、用户问题和样例数据推断出的中文表头。
+                 - `table_rows`：数组，使用 `table_columns.key` 对应的原始字段值，只放需要展示的查询明细行。
+                 - `chart_option`：只要接口返回列表数据，就必须返回合法 ECharts option 对象，默认使用柱状图；如果用户明确要求饼图、折线图或其他图形，再按用户要求生成。
+              6. 选择表格字段时，不要套用固定项目、用户或其他业务模板；必须根据当前接口的实际返回字段动态判断。优先展示能回答用户问题、能识别业务对象、便于筛选或排序的字段，弱化内部ID、删除标记、头像链接、权限噪声、审计噪声等低价值字段。
+              7. 表头一律使用自然中文；字段是英文驼峰、下划线、缩写、枚举码或布尔值时，需要结合接口描述、字段上下文、返回样例和用户问题理解后再翻译。状态、类型、是否类字段的值也应尽量翻译成中文可读值。
+              8. 如果字段很多，通常选择 6 到 12 个最重要字段，并按用户最关心的信息优先排序；如果用户明确要求某些字段，必须优先保留。
+              9. 如果列表数据过多，`table_rows` 可以只放前 20 条展示记录，但 `chart_option` 的统计必须基于完整数据而不是只基于展示记录。
+              10. 生成 `chart_option` 时，必须先由你自己判断一个最合适的分类维度，并显式输出 `chart_dimension_key` 与 `chart_dimension_label`；然后再基于这个维度对完整数据分组计数生成 `chart_option`。不要把分类判断交给后端代码，也不要使用后端的字段猜测结果。
+              11. 如果用户明确提出分类要求，例如“按部门名称区分”“根据项目状态统计”“按项目经理生成图表”，必须使用用户指定的字段作为图表维度；如果用户没有明确指定，则由你自己判断最合适的维度。
+              12. 多轮对话中，历史只能用于复用“数据”，不能直接复用上一轮的“分类列偏好”或图表 JSON。除非用户明确说“沿用上一次分类/继续上面的分组”，否则当用户说“生成图表”“按某字段区分生成图表”“根据某字段统计”“做成柱状图/折线图/饼图”“切换为按XX统计”时，必须以当前这句话重新选择维度列并重算 `chart_option`；如果历史里没有足够数据，必须重新调用最匹配的查询接口获取数据。
+              13. 请求成功时不能只返回表格；必须同时返回 `chart_option`，并确保至少包含 `tooltip`、`series`，柱状图/折线图还必须包含 `xAxis` 和 `yAxis`，饼图的 `series[0].type` 必须为 `pie`。
+              14. 生成图表时，`chart_option.title.text`、坐标轴名称、图例名称、系列名称必须使用中文。
+              15. 最终 JSON 必须是原始 JSON 对象，不要包在 ```json 代码块中。
+              16. 如果接口调用失败，只返回简短的纯文本错误信息。
+          model:
+            type: constant
+            value:
+              completion_params: {}
+              mode: chat
+              model: Pro/moonshotai/Kimi-K2.5
+              model_type: llm
+              provider: langgenius/siliconflow/siliconflow
+              type: model-selector
+          query:
+            type: constant
+            value: '{{#sys.query#}}'
+          maximum_iterations:
+            type: constant
+            value: 10
+          tools:
+            type: constant
+            value:
+            - enabled: true
+              extra:
+                description: 查询当前租户可用的第三方应用 API，用于规划后续工具调用。
+                parameters:
+                context_token:
+                  auto: 1
+                  value: null
+                max_results:
+                  auto: 1
+                  value: null
+                only_allowed:
+                  auto: 1
+                  value: null
+                query:
+                  auto: 1
+                  value: null
+              provider_name: external_app_runtime
+              provider_show_name: external_app_runtime
+              settings: {}
+              tool_description: 查询当前租户可用的第三方应用 API，用于规划后续工具调用。
+              tool_label: 查询可用接口
+              tool_name: list_available_apis
+              type: builtin
+            - enabled: true
+              extra:
+                description: 调用选定的第三方应用 API，并执行权限校验与审计记录。
+                parameters:
+                api_id:
+                  auto: 1
+                  value: null
+                app_id:
+                  auto: 1
+                  value: null
+                context_token:
+                  auto: 1
+                  value: null
+                dry_run:
+                  auto: 1
+                  value: null
+                params:
+                  auto: 1
+                  value: null
+                timeout_seconds:
+                  auto: 1
+                  value: 15
+              provider_name: external_app_runtime
+              provider_show_name: external_app_runtime
+              settings: {}
+              tool_description: 调用选定的第三方应用 API，并执行权限校验与审计记录。
+              tool_label: 调用接口
+              tool_name: invoke_api
+              type: builtin
+        agent_strategy_label: 函数调用
+        agent_strategy_name: function_calling
+        agent_strategy_provider_name: langgenius/agent/agent
+        memory:
+          query_prompt_template: '{{#sys.query#}}
+
+
+            {{#sys.files#}}'
+          window:
+            enabled: true
+            size: 4
+        meta:
+          minimum_dify_version: 1.7.0
+          version: 0.0.2
+        output_schema:
+          type: object
+          required:
+          - table_columns
+          - table_rows
+          - chart_option
+          - chart_dimension_key
+          - chart_dimension_label
+          properties:
+            table_columns:
+              type: array
+              description: 动态推断出的表格列配置，每项包含原始字段 key 和中文表头 label。
+              items:
+                type: object
+                properties:
+                  key:
+                    type: string
+                  label:
+                    type: string
+            table_rows:
+              type: array
+              description: 按 table_columns.key 输出的查询明细展示行。
+              items:
+                type: object
+            chart_option:
+              type: object
+              description: 用户要求图表时返回可直接渲染的 ECharts option 对象，否则为 null。
+            chart_dimension_key:
+              type: string
+              description: 用于图表分组统计的原始字段名，由模型自己判断并输出。
+            chart_dimension_label:
+              type: string
+              description: chart_dimension_key 对应的中文维度名称。
+        plugin_unique_identifier: langgenius/agent:0.0.34@4b41a374567eb7cb226ee2f851513794566956008f1166c63205efc921be72d8
+        selected: true
+        title: 智能体
+        tool_node_version: '2'
+        type: agent
+      height: 188
+      id: '1776937315244'
+      position:
+        x: 382
+        y: 282
+      positionAbsolute:
+        x: 382
+        y: 282
+      selected: true
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    viewport:
+      x: 245.60000000000002
+      y: 145.2
+      zoom: 0.8
+  rag_pipeline_variables: []
+

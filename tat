@@ -1,0 +1,112 @@
+[33mcommit 4b554d826c64eef750c311405c1eaca59c343af0[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mchore/add-docker-prod[m[33m, [m[1;31morigin/custom/main[m[33m, [m[1;31morigin/chore/add-docker-prod[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mcustom/main[m[33m)[m
+Author: 201811105043 <1781401015@qq.com>
+Date:   Thu Apr 2 09:44:09 2026 +0800
+
+    chore: align docker images with offline package
+
+[1mdiff --git a/docker/docker-compose-template.yaml b/docker/docker-compose-template.yaml[m
+[1mindex 57584cb82..a86667a1c 100644[m
+[1m--- a/docker/docker-compose-template.yaml[m
+[1m+++ b/docker/docker-compose-template.yaml[m
+[36m@@ -21,7 +21,7 @@[m [mservices:[m
+ [m
+   # API service[m
+   api:[m
+[31m-    image: langgenius/dify-api:1.13.3[m
+[32m+[m[32m    image: langgenius/dify-api:1.13.2[m
+     restart: always[m
+     environment:[m
+       # Use the shared environment variables.[m
+[36m@@ -30,6 +30,7 @@[m [mservices:[m
+       MODE: api[m
+       SENTRY_DSN: ${API_SENTRY_DSN:-}[m
+       SENTRY_TRACES_SAMPLE_RATE: ${API_SENTRY_TRACES_SAMPLE_RATE:-1.0}[m
+[32m+[m
+       SENTRY_PROFILES_SAMPLE_RATE: ${API_SENTRY_PROFILES_SAMPLE_RATE:-1.0}[m
+       PLUGIN_REMOTE_INSTALL_HOST: ${EXPOSE_PLUGIN_DEBUGGING_HOST:-localhost}[m
+       PLUGIN_REMOTE_INSTALL_PORT: ${EXPOSE_PLUGIN_DEBUGGING_PORT:-5003}[m
+[36m@@ -69,11 +70,12 @@[m [mservices:[m
+   # worker service[m
+   # The Celery worker for processing all queues (dataset, workflow, mail, etc.)[m
+   worker:[m
+[31m-    image: langgenius/dify-api:1.13.3[m
+[32m+[m[32m    image: langgenius/dify-api:1.13.2[m
+     restart: always[m
+     environment:[m
+       # Use the shared environment variables.[m
+       <<: *shared-api-worker-env[m
+[32m+[m
+       # Startup mode, 'worker' starts the Celery worker for processing all queues.[m
+       MODE: worker[m
+       SENTRY_DSN: ${API_SENTRY_DSN:-}[m
+[36m@@ -114,7 +116,7 @@[m [mservices:[m
+   # worker_beat service[m
+   # Celery beat for scheduling periodic tasks.[m
+   worker_beat:[m
+[31m-    image: langgenius/dify-api:1.13.3[m
+[32m+[m[32m    image: langgenius/dify-api:1.13.2[m
+     restart: always[m
+     environment:[m
+       # Use the shared environment variables.[m
+[36m@@ -123,6 +125,7 @@[m [mservices:[m
+       MODE: beat[m
+     depends_on:[m
+       init_permissions:[m
+[32m+[m
+         condition: service_completed_successfully[m
+       db_postgres:[m
+         condition: service_healthy[m
+[36m@@ -150,7 +153,7 @@[m [mservices:[m
+ [m
+   # Frontend web application.[m
+   web:[m
+[31m-    image: langgenius/dify-web:1.13.3[m
+[32m+[m[32m    image: langgenius/dify-web:1.13.2[m
+     restart: always[m
+     environment:[m
+       CONSOLE_API_URL: ${CONSOLE_API_URL:-}[m
+[1mdiff --git a/docker/docker-compose.yaml b/docker/docker-compose.yaml[m
+[1mindex b0f17d564..3461ed941 100644[m
+[1m--- a/docker/docker-compose.yaml[m
+[1m+++ b/docker/docker-compose.yaml[m
+[36m@@ -730,7 +730,7 @@[m [mservices:[m
+ [m
+   # API service[m
+   api:[m
+[31m-    image: langgenius/dify-api:1.13.3[m
+[32m+[m[32m    image: langgenius/dify-api:1.13.2[m
+     restart: always[m
+     environment:[m
+       # Use the shared environment variables.[m
+[36m@@ -778,7 +778,7 @@[m [mservices:[m
+   # worker service[m
+   # The Celery worker for processing all queues (dataset, workflow, mail, etc.)[m
+   worker:[m
+[31m-    image: my-dify-api:1.13.3-custom-ciduai[m
+[32m+[m[32m    image: langgenius/dify-api:1.13.2[m
+     restart: always[m
+     environment:[m
+       # Use the shared environment variables.[m
+[36m@@ -823,7 +823,7 @@[m [mservices:[m
+   # worker_beat service[m
+   # Celery beat for scheduling periodic tasks.[m
+   worker_beat:[m
+[31m-    image: my-dify-api:1.13.3-custom-ciduai[m
+[32m+[m[32m    image: langgenius/dify-api:1.13.2[m
+     restart: always[m
+     environment:[m
+       # Use the shared environment variables.[m
+[36m@@ -859,7 +859,7 @@[m [mservices:[m
+ [m
+   # Frontend web application.[m
+   web:[m
+[31m-    image: langgenius/dify-web:1.13.3[m
+[32m+[m[32m    image: langgenius/dify-web:1.13.2[m
+     restart: always[m
+     environment:[m
+       CONSOLE_API_URL: ${CONSOLE_API_URL:-}[m
+[36m@@ -1655,3 +1655,4 @@[m [mnetworks:[m
+ volumes:[m
+   oradata:[m
+   dify_es01_data:[m
+[41m+[m

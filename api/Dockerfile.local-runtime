@@ -1,0 +1,13 @@
+ARG BASE_API_IMAGE=cidu-dify-api:custom-main
+FROM ${BASE_API_IMAGE}
+
+USER root
+WORKDIR /app/api
+
+COPY --chown=dify:dify api /app/api/
+COPY --chown=dify:dify --chmod=755 api/docker/entrypoint.sh /entrypoint.sh
+
+ENV COMMIT_SHA=local-host-build
+
+USER dify
+ENTRYPOINT ["/bin/bash", "/entrypoint.sh"]

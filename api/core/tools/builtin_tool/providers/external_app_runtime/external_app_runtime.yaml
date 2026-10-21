@@ -1,0 +1,12 @@
+identity:
+  author: Dify
+  name: external_app_runtime
+  label:
+    en_US: External App Runtime
+    zh_Hans: 外部应用运行时
+  description:
+    en_US: Discover and invoke tenant external app APIs with permission and audit context.
+    zh_Hans: 在租户范围内发现并调用外部应用接口，附带权限判断与审计上下文。
+  icon: icon.svg
+  tags:
+    - utilities

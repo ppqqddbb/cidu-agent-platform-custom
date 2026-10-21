@@ -1,0 +1,74 @@
+[
+  {
+    "name": "A_user_read_orders_allowed",
+    "email": "a_user@example.com",
+    "password": "REPLACE_ME",
+    "tenant_id": "tenant_phase_biz_a",
+    "context_token_env": "CTX_A_USER",
+    "require_context_token": true,
+    "query": "customer orders",
+    "app_name": "CRM System A",
+    "api_name": "List Customer Orders",
+    "params": {
+      "path": {
+        "customer_id": "C123"
+      },
+      "query": {
+        "month": "2026-04"
+      }
+    },
+    "dry_run": true,
+    "expect_allowed": true,
+    "expect_permission_level": "user_scoped",
+    "skip_invoke": false
+  },
+  {
+    "name": "A_user_write_note_denied",
+    "email": "a_user@example.com",
+    "password": "REPLACE_ME",
+    "tenant_id": "tenant_phase_biz_a",
+    "context_token_env": "CTX_A_USER",
+    "require_context_token": true,
+    "query": "create order note",
+    "app_name": "CRM System A",
+    "api_name": "Create Order Note",
+    "expect_allowed": false,
+    "skip_invoke": true
+  },
+  {
+    "name": "A_admin_write_note_allowed",
+    "email": "a_admin@example.com",
+    "password": "REPLACE_ME",
+    "tenant_id": "tenant_phase_biz_a",
+    "context_token_env": "CTX_A_ADMIN",
+    "require_context_token": true,
+    "query": "create order note",
+    "app_name": "CRM System A",
+    "api_name": "Create Order Note",
+    "params": {
+      "path": {
+        "order_id": "O20260415001"
+      },
+      "body": {
+        "note": "auto regression note"
+      }
+    },
+    "dry_run": true,
+    "expect_allowed": true,
+    "expect_permission_level": "user_scoped",
+    "skip_invoke": false
+  },
+  {
+    "name": "B_user_update_ticket_denied",
+    "email": "b_user@example.com",
+    "password": "REPLACE_ME",
+    "tenant_id": "tenant_phase_biz_b",
+    "context_token_env": "CTX_B_USER",
+    "require_context_token": true,
+    "query": "update ticket status",
+    "app_name": "Ticket System B",
+    "api_name": "Update Ticket Status",
+    "expect_allowed": false,
+    "skip_invoke": true
+  }
+]

@@ -1,0 +1,27 @@
+ARG BASE_API_IMAGE=langgenius/dify-api:1.14.2
+FROM ${BASE_API_IMAGE}
+
+ARG UV_INDEX_URL=https://mirrors.aliyun.com/pypi/simple
+ARG UV_HTTP_TIMEOUT=600
+ARG UV_CONCURRENT_DOWNLOADS=4
+ARG UV_PIP_PACKAGES="--editable /app/dify-agent graphon==0.6.0 pydantic==2.12.5"
+
+USER root
+WORKDIR /app/api
+
+ENV UV_INDEX_URL=${UV_INDEX_URL}
+ENV UV_HTTP_TIMEOUT=${UV_HTTP_TIMEOUT}
+ENV UV_CONCURRENT_DOWNLOADS=${UV_CONCURRENT_DOWNLOADS}
+ENV PIP_INDEX_URL=${UV_INDEX_URL}
+
+COPY --chown=dify:dify dify-agent/pyproject.toml dify-agent/README.md /app/dify-agent/
+COPY --chown=dify:dify dify-agent/src /app/dify-agent/src
+RUN uv pip install --upgrade ${UV_PIP_PACKAGES}
+
+COPY --chown=dify:dify api /app/api/
+COPY --chown=dify:dify --chmod=755 api/docker/entrypoint.sh /entrypoint.sh
+
+ENV COMMIT_SHA=local-host-build
+
+USER dify
+ENTRYPOINT ["/bin/bash", "/entrypoint.sh"]

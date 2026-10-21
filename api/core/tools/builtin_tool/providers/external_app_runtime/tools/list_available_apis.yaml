@@ -1,0 +1,58 @@
+identity:
+  name: list_available_apis
+  author: Dify
+  label:
+    en_US: List Available APIs
+    zh_Hans: 查询可用接口
+description:
+  human:
+    en_US: List available external app APIs in the current tenant for planning a call path.
+    zh_Hans: 查询当前租户可用的第三方应用接口，供智能体规划调用路径。
+  llm: Use this tool first to discover app_id/api_id candidates before invoke_api. If multiple candidates are returned, explicitly explain the top matches and ask the user to confirm or provide narrowing conditions.
+parameters:
+  - name: query
+    type: string
+    required: false
+    label:
+      en_US: Query
+      zh_Hans: 查询词
+    human_description:
+      en_US: Fuzzy query for app/api intent.
+      zh_Hans: 用于应用和接口意图匹配的模糊查询词。
+    llm_description: user intent keywords, e.g. "order status" or "erp inventory".
+    form: llm
+  - name: context_token
+    type: string
+    required: false
+    label:
+      en_US: Context Token
+      zh_Hans: 上下文令牌
+    human_description:
+      en_US: Optional auth context token from upstream system.
+      zh_Hans: 来自上游业务系统的可选鉴权上下文令牌。
+    llm_description: auth context token with capabilities and tenant binding; prefer reusing the context_token provided in app inputs.
+    form: llm
+  - name: max_results
+    type: number
+    required: false
+    default: 50
+    label:
+      en_US: Max Results
+      zh_Hans: 最大返回数
+    human_description:
+      en_US: Maximum number of returned API candidates.
+      zh_Hans: 返回接口候选的最大数量。
+    llm_description: max candidates in [1,1000].
+    form: llm
+  - name: only_allowed
+    type: boolean
+    required: false
+    default: false
+    label:
+      en_US: Only Allowed
+      zh_Hans: 仅返回可调用
+    human_description:
+      en_US: Return only allowed APIs after permission check.
+      zh_Hans: 仅返回权限校验通过的接口。
+    llm_description: default false. Use false for initial discovery to avoid empty results caused by permission/auth filtering; use true only when user explicitly asks for strictly invokable APIs.
+    form: llm

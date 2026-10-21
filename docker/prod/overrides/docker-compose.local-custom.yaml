@@ -1,0 +1,80 @@
+services:
+  api:
+    image: cidu-dify-api:custom-main
+    pull_policy: never
+    environment:
+      CONSOLE_API_URL: "http://localhost"
+      CONSOLE_WEB_URL: "http://localhost"
+      SERVICE_API_URL: "http://localhost"
+      APP_API_URL: "http://localhost"
+      APP_WEB_URL: "http://localhost"
+      FILES_URL: "http://localhost"
+      WEB_API_CORS_ALLOW_ORIGINS: "http://localhost"
+      CONSOLE_CORS_ALLOW_ORIGINS: "http://localhost"
+      COOKIE_DOMAIN: ""
+      DEBUG: "false"
+      FLASK_DEBUG: "false"
+      INNER_API: "true"
+      INNER_API_KEY: "external-integration-local-key"
+      EXTERNAL_INTEGRATION_RESOLVE_ENABLED: "true"
+      EXTERNAL_INTEGRATION_RESOLVE_URL: "http://api:19091/resolve"
+      EXTERNAL_INTEGRATION_RESOLVE_API_KEY: "external-resolve-callback-key"
+      EXTERNAL_INTEGRATION_RESOLVE_TIMEOUT: "5"
+
+  worker:
+    image: cidu-dify-api:custom-main
+    pull_policy: never
+    environment:
+      CONSOLE_API_URL: "http://localhost"
+      CONSOLE_WEB_URL: "http://localhost"
+      SERVICE_API_URL: "http://localhost"
+      APP_API_URL: "http://localhost"
+      APP_WEB_URL: "http://localhost"
+      FILES_URL: "http://localhost"
+      WEB_API_CORS_ALLOW_ORIGINS: "http://localhost"
+      CONSOLE_CORS_ALLOW_ORIGINS: "http://localhost"
+      COOKIE_DOMAIN: ""
+      DEBUG: "false"
+      FLASK_DEBUG: "false"
+      INNER_API: "true"
+      INNER_API_KEY: "external-integration-local-key"
+      EXTERNAL_INTEGRATION_RESOLVE_ENABLED: "true"
+      EXTERNAL_INTEGRATION_RESOLVE_URL: "http://api:19091/resolve"
+      EXTERNAL_INTEGRATION_RESOLVE_API_KEY: "external-resolve-callback-key"
+      EXTERNAL_INTEGRATION_RESOLVE_TIMEOUT: "5"
+
+  worker_beat:
+    image: cidu-dify-api:custom-main
+    pull_policy: never
+    environment:
+      CONSOLE_API_URL: "http://localhost"
+      CONSOLE_WEB_URL: "http://localhost"
+      SERVICE_API_URL: "http://localhost"
+      APP_API_URL: "http://localhost"
+      APP_WEB_URL: "http://localhost"
+      FILES_URL: "http://localhost"
+      WEB_API_CORS_ALLOW_ORIGINS: "http://localhost"
+      CONSOLE_CORS_ALLOW_ORIGINS: "http://localhost"
+      COOKIE_DOMAIN: ""
+      DEBUG: "false"
+      FLASK_DEBUG: "false"
+      INNER_API: "true"
+      INNER_API_KEY: "external-integration-local-key"
+      EXTERNAL_INTEGRATION_RESOLVE_ENABLED: "true"
+      EXTERNAL_INTEGRATION_RESOLVE_URL: "http://api:19091/resolve"
+      EXTERNAL_INTEGRATION_RESOLVE_API_KEY: "external-resolve-callback-key"
+      EXTERNAL_INTEGRATION_RESOLVE_TIMEOUT: "5"
+
+  web:
+    image: cidu-dify-web:custom-main
+    pull_policy: never
+    environment:
+      CONSOLE_API_URL: "http://localhost"
+      APP_API_URL: "http://localhost"
+      SERVER_CONSOLE_API_URL: "http://api:5001"
+      NEXT_PUBLIC_COOKIE_DOMAIN: ""
+      NEXT_PUBLIC_SOCKET_URL: "ws://localhost"
+
+  db_postgres:
+    volumes:
+      - ../volumes/local_custom_db/data:/var/lib/postgresql/data

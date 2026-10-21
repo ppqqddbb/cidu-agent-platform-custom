@@ -1,0 +1,21 @@
+services:
+  api:
+    image: ${LOCAL_DIFY_API_IMAGE:-dify-api:local}
+    pull_policy: never
+    environment:
+      DEBUG: "false"
+      FLASK_DEBUG: "false"
+
+  worker:
+    image: ${LOCAL_DIFY_API_IMAGE:-dify-api:local}
+    pull_policy: never
+    environment:
+      DEBUG: "false"
+      FLASK_DEBUG: "false"
+
+  worker_beat:
+    image: ${LOCAL_DIFY_API_IMAGE:-dify-api:local}
+    pull_policy: never
+    environment:
+      DEBUG: "false"
+      FLASK_DEBUG: "false"
